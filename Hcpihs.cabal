@@ -1,0 +1,16 @@
+Name: Hcpihs
+Version: 0.0.1
+Cabal-version: >= 1.6
+License: OtherLicense
+Author: Christoph "Hammy" Stahl
+Maintainer: christoph.stahl@uni-dortmund.de
+Stability: alpha
+Category: Network
+Synopsis: Implementation of the Hauer Chat Protocol Server in Haskell
+Build-type: Simple
+
+Executable hcpihs
+    hs-source-dirs: src
+    Build-Depends: base, network, containers, Crypto
+    main-is: hcpihs.hs
+
