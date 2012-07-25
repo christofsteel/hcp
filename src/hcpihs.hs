@@ -11,10 +11,10 @@ import Network.HCPIH.Tainted
 import Network.HCPIH.Conf
 
 
-type Connections = [Handle]
+type Connections = Map.Map String Handle
 
 noConnections :: Connections
-noConnections = []
+noConnections = Map.empty
 
 doDebug = True
 
@@ -22,14 +22,18 @@ debug string = case doDebug of
 	True -> putStrLn string
 	False -> return ()
 
-sendToAll :: Connections -> String -> IO [ThreadId]
-sendToAll c m = mapM ((flip send) (Message m)) c
+sendToAll :: Connections -> Communication -> IO [ThreadId]
+sendToAll c m = mapM (\(user, handle) -> send handle m) $ Map.toList c
 	
 register :: String -> String -> IO (Maybe String)
 register u p = do
 	currUsers <- loadUsers
-	saveUsers $ Map.insert u (show $ sha256Ascii $ u++p) currUsers
-	return $ Just u
+        let user = Map.lookup u currUsers
+        case user of
+            Nothing -> do
+              saveUsers $ Map.insert u (show $ sha256Ascii $ u++p) currUsers
+	      return $ Just u
+            Just a -> return Nothing
 
 login :: String -> String -> IO (Maybe String)
 login u p = do
@@ -39,49 +43,74 @@ login u p = do
 		Just aPassword -> if aPassword == (show $ sha256Ascii $ u++p) then Just u else Nothing
 		Nothing -> Nothing
 
+chatWith :: Handle -> IORef Connections -> IO ()
 chatWith h c = do
-	maybeUsername <- getInitialCommunication h login register	
+        initial <- getCommunication h
+        maybeUsername <- case initial of
+          Login u p -> login u p
+          Register u p -> register u p
 	case maybeUsername of
-		Just username -> send h (Message "Willkommen") >>= \_ -> chat username ""
+		Just username -> do
+                        send h (Message "Willkommen") 
+		        atomicModifyIORef c (\con -> (Map.insert username h con, ()))
+                        connections <- readIORef c
+                        sendToAll connections $ Login ( username ++ " logged in") "" 
+                        debug $ username ++ " logged in"
+                        chat username
 		Nothing -> do
-			send h $ Error "Wrong username/password"
-			hClose h
+                        case initial of
+                            Login u p -> send h $ Error "Wrong username/password"
+                            Register u p -> send h $ Error $ "User " ++ u ++ " already exists"
+                        hClose h
 	where
-		chat username quitreason = do 
+		chat username = do 
 			message <- tryIOError $ getCommunication h	
+                        connections <- readIORef c
 			case message of
 				Left a -> do
-					atomicModifyIORef c (\con -> (delete h con, ()))
+					atomicModifyIORef c (\con -> (Map.delete username con, ()))
 					hClose h
-                                        connections <- readIORef c
-                                        sendToAll connections $ username ++ " hat den Chat verlassen (" ++ quitreason ++ ")"
-					debug "Client Disconnect"
+					newConnections <- readIORef c
+                                        sendToAll newConnections $ Logout $ "User " ++ username ++ " disconnected"
+					debug $ "User " ++ username ++" disconnected"
 				Right (Message msg) -> do
-					connections <- readIORef c
-                                        reason <- case msg of
-                                           '/':'m':'e':' ':emote -> do
-                                             sendToAll connections $ username ++ " " ++ emote 
-                                             return ""
-                                           "/quit" -> return "Unknown Reason"
-                                           '/':'q':'u':'i':'t':' ':qreason -> return qreason
-					   otherwise -> do
-                                             sendToAll connections $ username ++": " ++ msg
-                                             return ""
-					debug msg
-					chat username reason
+                                        sendToAll connections $ Message $ username ++": " ++ msg
+					debug $ username ++": " ++ msg
+					chat username
+                                Right (Logout reason) -> do
+					atomicModifyIORef c (\con -> (Map.delete username con, ()))
+					hClose h
+					newConnections <- readIORef c
+                                        sendToAll newConnections $ Logout $ "User " ++ username ++ " logged out" ++ if reason == "" then " for unknown reason" else ", "++ reason
+                                        debug $ "User " ++ username ++ " logged out" ++ if reason == "" then " for unknown reason" else ", "++ reason
+                                Right (DM user message) -> do
+                                        let target = Map.lookup user connections
+                                        curruser <- loadUsers
+                                        let exists = isJust $ Map.lookup user curruser
+                                        case target of
+                                            Just targetuser -> send targetuser $ DM username message
+                                            Nothing -> send h $ Error $ if exists 
+                                              then "User " ++ user ++ " is currently offline. Try again later!"
+                                              else "User " ++ user ++ " not Found"
+                                        chat username
+                                Right (Emote emote) -> do
+                                        sendToAll connections $ Emote $ username ++ " " ++ emote
+                                        debug $ username ++ " " ++ emote
+                                        chat username
+
+                                        
 				
 main = withSocketsDo $ do
 	connections <- newIORef noConnections
 	socket <- listenOn $ PortNumber 7331
 	forkIO $ repeat $ do
 		(handle,_,_) <- accept socket
-		atomicModifyIORef connections (\con -> (handle:con, ()))
 		debug "Client Connect"
 		threadId <- forkIO $ chatWith handle connections		
 		return ()
 	repeat $ do
 		servermessage <- getLine
 		connections' <- readIORef connections
-		sendToAll connections' $ "SERVER: " ++ servermessage
+		sendToAll connections' $ Message $ "SERVER: " ++ servermessage
 	where
 		repeat f = f >>= \_ -> repeat f

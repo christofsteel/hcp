@@ -1,20 +1,22 @@
 module Network.HCPIH.Tainted (
 send,
 getCommunication,
-getInitialCommunication,
-Communication (Message, Error, Register, Login)
+Communication (Message, Error, Register, Login, Logout, DM, Emote)
 ) where
 
 import System.IO
 import Control.Concurrent
 
-data Communication = Message String | Error String | Register String String | Login String String
+data Communication = Message String | Error String | Register String String | Login String String | Logout String | DM String String | Emote String
 
 sendStr :: Communication -> String
-sendStr (Message s)  = "\1" ++ s ++ "\0"
 sendStr (Error s)  = "\0" ++ s ++ "\0"
-sendStr (Register u p)  = "\3" ++ u ++ "\0" ++ p ++ "\0"
+sendStr (Message s)  = "\1" ++ s ++ "\0"
 sendStr (Login u p)  = "\2" ++ u ++ "\0" ++ p ++ "\0"
+sendStr (Logout r)  = "\3" ++ r ++ "\0"
+sendStr (Register u p)  = "\4" ++ u ++ "\0" ++ p ++ "\0"
+sendStr (DM u s)  = "\5" ++ u ++ "\0" ++ s ++ "\0"
+sendStr (Emote s) = "\6" ++ s ++ "\0"
 
 send :: Handle -> Communication -> IO ThreadId
 send h m = forkIO $ do
@@ -25,16 +27,19 @@ getCommunication :: Handle -> IO Communication
 getCommunication h = do
   string <- hGetToNull h
   case string of
-    '\1':message -> return $ Message message
     '\0':message -> return $ Error message
-
-getInitialCommunication :: Handle -> (String -> String -> IO (Maybe a)) -> (String -> String -> IO (Maybe a)) -> IO (Maybe a)
-getInitialCommunication h flogin fregister = do
-  lusername <- hGetToNull h
-  password <- hGetToNull h
-  case lusername of
-    '\3':username -> fregister username password
-    '\2':username -> flogin username password
+    '\1':message -> return $ Message message
+    '\2':username -> do
+      password <- hGetToNull h
+      return $ Login username password
+    '\3':reason -> return $ Logout reason
+    '\4':username -> do
+      password <- hGetToNull h
+      return $ Register username password
+    '\5':username -> do
+      message <- hGetToNull h
+      return $ DM username message
+    '\6':emote -> return $ Emote emote
 
 hGetToNull :: Handle -> IO String
 hGetToNull h = do
