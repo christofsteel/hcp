@@ -1,14 +1,16 @@
 module Network.HCPIH.Tainted (
+safetail,
 send,
 getCommunication,
-Communication (Message, Error, Register, Login, Logout, DM, Emote, Undefined)
+Communication (Message, Error, Register, Login, Logout, DM, Emote, QueryOnline , Undefined)
 ) where
 
 import System.IO
 import Control.Concurrent
 import Unsafe.Coerce
+import Data.List.Split
 
-data Communication = Message String | Error String | Register String String | Login String String | Logout String | DM String String | Emote String | Undefined deriving Show
+data Communication = Message String | Error String | Register String String | Login String String | Logout String | DM String String | Emote String | QueryOnline [String] | Undefined deriving Show
 
 sendStr :: Communication -> String
 sendStr (Error s)  = "\0" ++ s ++ "\0"
@@ -18,6 +20,15 @@ sendStr (Logout r)  = "\3" ++ r ++ "\0"
 sendStr (Register u p)  = "\4" ++ u ++ "\0" ++ p ++ "\0"
 sendStr (DM u s)  = "\5" ++ u ++ "\0" ++ s ++ "\0"
 sendStr (Emote s) = "\6" ++ s ++ "\0"
+sendStr (QueryOnline users) = "\7" ++ foldr (\string user -> string ++ ';':user) (safestringhead users) (safetail users) ++ "\0"
+
+safetail :: [a] -> [a]
+safetail (x:xs) = xs
+safetail xs = []
+
+safestringhead :: [String] -> String
+safestringhead (x:xs) = x
+safestringhead xs = ""
 
 send :: Handle -> Communication -> IO ThreadId
 send h m = forkIO $ do
@@ -41,11 +52,11 @@ getCommunication h = do
       message <- hGetToNull_ h
       return $ DM username message
     '\6':emote -> return $ Emote emote
+    '\7':userlist -> return $ QueryOnline $ splitOn ";" userlist
     _ -> return Undefined
 
 hGetToNull_ :: Handle -> IO String
 hGetToNull_ h = do
---  char <- hGetCihar h
   string <- repeatedGet ""
   return $ string
   where 

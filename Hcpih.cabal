@@ -12,15 +12,15 @@ Build-type: Simple
 
 Executable hcpraw
     hs-source-dirs: src
-    Build-Depends: base, network
+    Build-Depends: base, network, split
     main-is: hcpraw.hs
 
 Executable hcpihs
     hs-source-dirs: src
-    Build-Depends: base, network, containers, Crypto
+    Build-Depends: base, network, split, containers, Crypto
     main-is: hcpihs.hs
 
 Executable hcpihc
     hs-source-dirs: src
-    Build-Depends: base, network
+    Build-Depends: base, network, split
     main-is: hcpihc.hs

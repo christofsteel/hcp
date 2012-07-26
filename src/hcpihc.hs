@@ -22,10 +22,6 @@ getLineWithPrompt prompt nl = do
     else return ()
   return line
 
-safetail :: String -> String
-safetail (x:xs) = xs
-safetail xs = xs
-
 main = withSocketsDo $ do
    hSetBuffering stdout NoBuffering
    args <- getArgs 
@@ -82,6 +78,9 @@ printChats h = do
     Right (Emote msg) -> do
       putStrLn $ "* " ++ msg
       printChats h
+    Right (QueryOnline users) -> do
+      putStrLn $ ": " ++ (init $ init $ concatMap (\user -> user ++ ", ") users)
+      printChats h
     _ -> do
       printChats h
 
@@ -102,6 +101,9 @@ chat handle = do
     ("/logout",reason) -> do
       send handle $ Logout $ safetail reason
       return ()
+    ("/who",_) -> do
+      send handle $ QueryOnline []
+      chat handle
     _ -> do 
       send handle $ Message line
       chat handle

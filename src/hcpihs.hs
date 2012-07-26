@@ -103,6 +103,10 @@ chatWith h c = do
           sendToAll connections $ Emote $ username ++ " " ++ emote
           debug $ username ++ " " ++ emote
           chat username	
+	Right (QueryOnline _) -> do
+	  send h $ QueryOnline $ map (fst) $ Map.toList connections
+	  debug $ username ++ " queried Users"
+	  chat username
 	Right (Undefined) -> do
 	  send h $ Error "Unknown Command"
 	  debug $ "(" ++ username ++ ") Unknown Command"
