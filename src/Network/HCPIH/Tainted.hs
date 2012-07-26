@@ -1,13 +1,13 @@
 module Network.HCPIH.Tainted (
 send,
 getCommunication,
-Communication (Message, Error, Register, Login, Logout, DM, Emote)
+Communication (Message, Error, Register, Login, Logout, DM, Emote, Undefined)
 ) where
 
 import System.IO
 import Control.Concurrent
 
-data Communication = Message String | Error String | Register String String | Login String String | Logout String | DM String String | Emote String
+data Communication = Message String | Error String | Register String String | Login String String | Logout String | DM String String | Emote String | Undefined
 
 sendStr :: Communication -> String
 sendStr (Error s)  = "\0" ++ s ++ "\0"
@@ -40,6 +40,7 @@ getCommunication h = do
       message <- hGetToNull h
       return $ DM username message
     '\6':emote -> return $ Emote emote
+    otherwise -> return Undefined
 
 hGetToNull :: Handle -> IO String
 hGetToNull h = do
