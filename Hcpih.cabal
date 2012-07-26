@@ -9,6 +9,12 @@ Category: Network
 Synopsis: Implementation of the Hauer Chat Protocol Server in Haskell
 Build-type: Simple
 
+
+Executable hcpraw
+    hs-source-dirs: src
+    Build-Depends: base, network
+    main-is: hcpraw.hs
+
 Executable hcpihs
     hs-source-dirs: src
     Build-Depends: base, network, containers, Crypto
