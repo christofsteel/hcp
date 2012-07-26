@@ -79,6 +79,10 @@ chatWith h c = do
           sendToAll connections $ Message $ username ++": " ++ msg
           debug $ username ++": " ++ msg
           chat username
+        Right (Error msg) -> do
+          send h $ Error "Error? What error"
+          debug $ "ERROR" ++ msg
+          chat username
         Right (Logout reason) -> do
           atomicModifyIORef c (\con -> (Map.delete username con, ()))
           hClose h
