@@ -14,3 +14,7 @@ Executable hcpihs
     Build-Depends: base, network, containers, Crypto
     main-is: hcpihs.hs
 
+Executable hcpihc
+    hs-source-dirs: src
+    Build-Depends: base, network
+    main-is: hcpihc.hs

@@ -7,7 +7,7 @@ Communication (Message, Error, Register, Login, Logout, DM, Emote, Undefined)
 import System.IO
 import Control.Concurrent
 
-data Communication = Message String | Error String | Register String String | Login String String | Logout String | DM String String | Emote String | Undefined
+data Communication = Message String | Error String | Register String String | Login String String | Logout String | DM String String | Emote String | Undefined deriving Show
 
 sendStr :: Communication -> String
 sendStr (Error s)  = "\0" ++ s ++ "\0"
@@ -40,7 +40,7 @@ getCommunication h = do
       message <- hGetToNull h
       return $ DM username message
     '\6':emote -> return $ Emote emote
-    otherwise -> return Undefined
+    _ -> return Undefined
 
 hGetToNull :: Handle -> IO String
 hGetToNull h = do
