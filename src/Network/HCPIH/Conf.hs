@@ -1,6 +1,6 @@
 module Network.HCPIH.Conf (
-  loadUsers,
-  saveUsers,
+  writeConf,
+  readConf,
   Users
 ) where
 
@@ -19,7 +19,7 @@ writeConf filename conf = do
                     Left _ -> putStrLn "Irgendwas ist beim schreiben schief gegangen.... egal"
                     Right _ -> return ()
 
-readConf :: String -> IO (Maybe Users)
+readConf :: String -> IO Users
 readConf filename = do
     let readThisFile s h = do
         eof <- hIsEOF h
@@ -28,16 +28,6 @@ readConf filename = do
             return $ s ++ "\n" ++ content
     content <- tryIOError $ withFile filename ReadMode $ readThisFile ""
     return $ case content of
-        Left _ -> Nothing
-        Right conf -> listToMaybe $ map fst $ reads conf
-
-saveUsers :: Users -> IO ()
-saveUsers = writeConf "hcpihs.conf"
-
-loadUsers :: IO Users
-loadUsers = do
-        users <- readConf "hcpihs.conf"
-        case users of
-                Just u -> return u
-                Nothing -> return Map.empty
+        Left _ -> Map.empty
+        Right conf -> fst $ head $reads conf
 

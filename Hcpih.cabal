@@ -17,10 +17,10 @@ Executable hcpraw
 
 Executable hcpihs
     hs-source-dirs: src
-    Build-Depends: base, network, split, containers, Crypto
+    Build-Depends: base, network, split, containers, Crypto, cmdargs
     main-is: hcpihs.hs
 
 Executable hcpihc
     hs-source-dirs: src
-    Build-Depends: base, network, split
+    Build-Depends: base, network, split, cmdargs
     main-is: hcpihc.hs

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 import System.IO
 import Network
 import Control.Concurrent
@@ -5,8 +6,20 @@ import Control.Exception
 import Network.HCPIH.Tainted
 import System.Environment
 import System.IO.Error
+import System.Console.CmdArgs.Implicit
 
-port = 7331
+data Options = Options
+   {port :: Integer
+   ,user :: String
+   ,register :: Bool
+   ,host :: String} deriving (Show, Data, Typeable)
+
+getOptions = Options
+  { port = 7331 &= help "Port" &= typ "PORT"
+  , user = def &= help "Username" &= typ "STRING"
+  , register = def &= help "Register a new user"
+  , host = def &= typ "Server" &= args} &= program "hcpihc" &= summary "Hauer Chat Protocol In Haskell Client v0.0.1"
+
 
 getLineWithPromptIfEmpty :: String -> Bool -> String -> IO String
 getLineWithPromptIfEmpty prompt nl string = if string == ""
@@ -24,19 +37,25 @@ getLineWithPrompt prompt nl = do
 
 main = withSocketsDo $ do
    hSetBuffering stdout NoBuffering
-   args <- getArgs 
-   server <- if length args > 0
-     then return $ args !! 0
+   args <- cmdArgs getOptions
+   server <- if host args /= ""
+     then return $ host args
      else getLineWithPrompt "Server: " False
-   tryHandle <- tryIOError $ connectTo server $ PortNumber port
+   tryHandle <- tryIOError $ connectTo server $ PortNumber $ fromInteger $ port args
    case tryHandle of
      Left a -> putStrLn "Error on connect"
      Right handle -> do
        putStrLn "Welcome to the Hauer Chat Protocol In Haskell Client"
-       putStrLn "/login <username> to login with username"
-       putStrLn "/register <username> to register with the Server"
-       command <- getLine
-       case break (==' ') command of
+       command <- if register args
+         then return ("/register",user args)
+         else if user args /= ""
+           then return ("/login", user args)
+           else do           
+             putStrLn "/login <username> to login with username"
+             putStrLn "/register <username> to register with the Server"
+             line <- getLine
+             return $ break (==' ') line
+       case command of
          ("/login",username) -> do
            username_ <- getLineWithPromptIfEmpty "Username: " False $ safetail username
            password <- withEcho False $ getLineWithPrompt "Password: " True
