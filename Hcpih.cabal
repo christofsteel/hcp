@@ -6,7 +6,7 @@ Author: Christoph "Hammy" Stahl
 Maintainer: christoph.stahl@uni-dortmund.de
 Stability: alpha
 Category: Network
-Synopsis: Implementation of the Hauer Chat Protocol Server in Haskell
+Synopsis: Implementation of the Hauer Chat Protocol Server and Client in Haskell
 Build-type: Simple
 
 
